@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import *
@@ -7,7 +8,12 @@ import numpy as np
 import cv2
 import pytesseract
 
-pytesseract.pytesseract.tesseract_cmd = "C:/Program Files/Tesseract-OCR/tesseract.exe"
+# On Windows, Tesseract is usually not on PATH, so point pytesseract at the
+# default install location if it exists. On macOS/Linux the `tesseract` binary
+# is normally on PATH (Homebrew / apt), so we leave pytesseract's default.
+_windows_tesseract = "C:/Program Files/Tesseract-OCR/tesseract.exe"
+if os.path.exists(_windows_tesseract):
+    pytesseract.pytesseract.tesseract_cmd = _windows_tesseract
 
 cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_russian_plate_number.xml")
@@ -36,6 +42,13 @@ def classify(file_path):
     #cv2.imshow("plate", gray)
     ################################################
     nplate = cascade.detectMultiScale(gray, 1.1, 4)
+    if len(nplate) == 0:
+        # No plate detected: show a message and stop instead of crashing on a
+        # missing "Number Plate.jpg" further down.
+        label.configure(foreground='#011638', text='No number plate detected.')
+        plate_image.configure(image='')
+        plate_image.image = None
+        return
     for (x, y, w, h) in nplate:
         # Cropping a portion of the number plate
         a, b = (int(0.02*img.shape[0]), int(0.025*img.shape[1]))
